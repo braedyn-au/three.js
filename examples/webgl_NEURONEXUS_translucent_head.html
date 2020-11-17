@@ -61,7 +61,7 @@
 				showLines: true,
 				minDistance: 100,
 				limitConnections: true,
-				maxConnections: 0,
+				maxConnections: 10,
 				particleCount: 20
 			};
 
@@ -108,19 +108,19 @@
 					// To make sure that the matrixWorld is up to date for the boxhelpers
 					head.updateMatrixWorld( true );
 
-					head.add( mesh );
+					// head.add( mesh ); DISABLE FOR TRANSLUCENT OBJECT
 
-					vnh = new VertexNormalsHelper( mesh, 2, 0x00FFFF ); // vertical
+					vnh = new VertexNormalsHelper( mesh, 0.002, 0x00FFFF ); // vertical
 					vnh.material.transparent = true;
 					// vnh.scale.multiplyScalar(2000000);
-					// vnh.material.opacity = 0.5;
-					scene.add( vnh ); // scene.add => opaque head/ head.add => transparent head
+					vnh.material.opacity = 0.5;
+					head.add( vnh );
 
-					vth = new VertexTangentsHelper( mesh, 20, 0xCCCCCC ); // horizontal
+					vth = new VertexTangentsHelper( mesh, 0.020, 0xCCCCCC ); // horizontal
 					vth.material.transparent = true;
-					// vth.material.opacity = 0.5;
+					vth.material.opacity = 0.5;
 					// vth.scale.multiplyScalar(2000000);
-					scene.add( vth ); // scene => opaque head/head => transparent head
+					head.add( vth );
 
 					// scene.add( new THREE.BoxHelper( mesh ) );
 
@@ -288,8 +288,8 @@
 					if ( effectController.limitConnections && particleData.numConnections >= effectController.maxConnections )
 						continue;
 
-					// Check collision
 					// input network data right here
+					// read adjacancy matrix as csv/json 
 					for ( let j = i + 1; j < particleCount; j ++ ) {
 						// console.log(j)
 						const particleDataB = particlesData[ j ];
@@ -300,16 +300,16 @@
 						const dy = particlePositions[ i * 3 + 1 ] - particlePositions[ j * 3 + 1 ];
 						const dz = particlePositions[ i * 3 + 2 ] - particlePositions[ j * 3 + 2 ];
 						const dist = Math.sqrt( dx * dx + dy * dy + dz * dz );
+						
 						let rand = Math.floor(Math.random() * 100);
-						// console.log(rand)
-						if ( dist < effectController.minDistance ) {
-						// if ( j % 2 === 0 ){	
+						// **if connection exists
+						if ( rand === 10){	
 							// console.log(j)
 							particleData.numConnections ++;
 							particleDataB.numConnections ++;
 
-							// color of line changes with distance
-							const alpha = 1.0 - dist / effectController.minDistance;
+							// color of line changes with distance **strength of connection
+							const alpha = 1.0 - dist / 1000;//effectController.minDistance;
 
 							positions[ vertexpos ++ ] = particlePositions[ i * 3 ];
 							positions[ vertexpos ++ ] = particlePositions[ i * 3 + 1 ];
@@ -330,7 +330,10 @@
 							numConnected ++;
 
 						}
-
+						// setTimeout(() => { console.log("Awaiting calculations") ;}, 20000);
+						
+						await delay(5000);
+						console.log("Done");
 					}
 
 				}
