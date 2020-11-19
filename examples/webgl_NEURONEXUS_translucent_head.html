@@ -48,7 +48,7 @@
 			const r = 600;
 			const rHalf = r / 2;
 			const thetaMin = 0;
-			const thetaMax = 300;  // theta from 0 to 360
+			const thetaMax = 250;  // theta from 0 to 360
 			const phiMin = 0;
 			const phiMax = 180;		// phi from 0 to 180
 			let radius;
@@ -88,53 +88,56 @@
 				group = new THREE.Group();
 				scene.add( group );
 				
-				// light = new THREE.PointLight();
-				// light.position.set( 200, 900, 1150 );
-				// scene.add( light );
+				light = new THREE.PointLight();
+				light.position.set( 200, 900, 1150 );
+				scene.add( light );
 
-				// scene.add( new THREE.PointLightHelper( light, 15 ) );
+				scene.add( new THREE.PointLightHelper( light, 15 ) );
 				
 				const loader = new GLTFLoader();
-				loader.load( 'models/gltf/LeePerrySmith/LeePerrySmith.glb', function ( gltf ) {
+				// loader.load( 'models/gltf/LeePerrySmith/LeePerrySmith.glb', function ( gltf ) {
+				loader.load( 'models/gltf/LeePerrySmith/BrainLVQ.glb', function ( gltf ) {
 				// loader.load( 'models/gltf/LeePerrySmith/Head.glb', function ( gltf ) {
 					head = new THREE.Group();
 
 					scene.add( head );
-					const mesh = gltf.scene.children[ 0 ];
+					const mesh = gltf.scene.children[0];
 					
 
-					BufferGeometryUtils.computeTangents( mesh.geometry ); // generates bad data due to degenerate UVs
-					head.scale.multiplyScalar( 200 );
+					// BufferGeometryUtils.computeTangents( mesh.geometry ); // generates bad data due to degenerate UVs
+					head.scale.multiplyScalar( 4.5);
 					// To make sure that the matrixWorld is up to date for the boxhelpers
-					head.updateMatrixWorld( true );
+					// head.updateMatrixWorld( true );
 
 					// head.add( mesh ); DISABLE FOR TRANSLUCENT OBJECT
 
-					vnh = new VertexNormalsHelper( mesh, 0.002, 0x00FFFF ); // vertical
-					vnh.material.transparent = true;
-					// vnh.scale.multiplyScalar(2000000);
-					vnh.material.opacity = 0.5;
-					head.add( vnh );
+					// vnh = new VertexNormalsHelper( mesh, 0.002, 0xCCCCCC ); // vertical
+					// vnh.material.transparent = true;
+					// // vnh.scale.multiplyScalar(2000000);
+					// vnh.material.opacity = 0.5;
+					// head.add( vnh );
 
-					vth = new VertexTangentsHelper( mesh, 0.020, 0xCCCCCC ); // horizontal
-					vth.material.transparent = true;
-					vth.material.opacity = 0.5;
-					// vth.scale.multiplyScalar(2000000);
-					head.add( vth );
+					// vth = new VertexTangentsHelper( mesh, 0.050, 0x00FFFF ); // horizontal
+					// vth.material.transparent = true;
+					// vth.material.opacity = 0.8;
+					// // vth.scale.multiplyScalar(2000000);
+					// head.add( vth );
 
 					// scene.add( new THREE.BoxHelper( mesh ) );
 
-					// const wireframe = new THREE.WireframeGeometry( mesh.geometry );
-					// let line = new THREE.LineSegments( wireframe );
-					// line.material.depthTest = false;
-					// line.material.opacity = 0.1;
-					// line.material.transparent = true;
-					// line.position.x = 0;
-					// line.position.y=-2.5
-					// head.add( line );
+					const wireframe = new THREE.WireframeGeometry( mesh.geometry );
+					let line = new THREE.LineSegments( wireframe );
+					line.material.depthTest = false;
+					line.material.opacity = 0.02;
+					line.material.transparent = true;
+					line.position.x = 0;
+					line.position.z=20
+					line.position.y=60
+					line.rotateY(Math.PI)
+					head.add( line );
 
 
-				} );
+				});
 
 				//
 
@@ -146,7 +149,7 @@
 				positions = new Float32Array( segments * 3 );
 				colors = new Float32Array( segments * 3 );
 
-				const pMaterial = new THREE.PointsMaterial( {
+				let pMaterial = new THREE.PointsMaterial( {
 					color: 0xFF0000,
 					size: 5,
 					blending: THREE.AdditiveBlending,
@@ -256,8 +259,25 @@
 
 			}
 
-			function animate() {
+			// add waiting???
+			function wait(ms) {
+					return new Promise(resolve => {
+						setTimeout(resolve, ms);
+						});
+					}
 
+			function wait2sec() {
+				console.log("waiting...");
+				return new Promise(resolve => {
+					setTimeout(function() {
+						resolve("slow");
+					}, 2000);
+				});
+			};
+
+			function animate() {
+				// await wait(5000);
+				// const slow = await wait2sec();
 				let vertexpos = 0;
 				let colorpos = 0;
 				let numConnected = 0;
@@ -271,45 +291,21 @@
 					const particleData = particlesData[ i ];
 					// console.log(i)
 
-					particlePositions[ i * 3 ] += particleData.velocity.x;
-					particlePositions[ i * 3 + 1 ] += particleData.velocity.y;
-					particlePositions[ i * 3 + 2 ] += particleData.velocity.z;
-
-					// boundary conditions
-					if ( particlePositions[ i * 3 + 1 ] < - rHalf || particlePositions[ i * 3 + 1 ] > rHalf )
-						particleData.velocity.y = - particleData.velocity.y;
-
-					if ( particlePositions[ i * 3 ] < - rHalf || particlePositions[ i * 3 ] > rHalf )
-						particleData.velocity.x = - particleData.velocity.x;
-
-					if ( particlePositions[ i * 3 + 2 ] < - rHalf || particlePositions[ i * 3 + 2 ] > rHalf )
-						particleData.velocity.z = - particleData.velocity.z;
-
-					if ( effectController.limitConnections && particleData.numConnections >= effectController.maxConnections )
-						continue;
-
 					// input network data right here
 					// read adjacancy matrix as csv/json 
 					for ( let j = i + 1; j < particleCount; j ++ ) {
 						// console.log(j)
 						const particleDataB = particlesData[ j ];
-						if ( effectController.limitConnections && particleDataB.numConnections >= effectController.maxConnections )
-							continue;
-
-						const dx = particlePositions[ i * 3 ] - particlePositions[ j * 3 ];
-						const dy = particlePositions[ i * 3 + 1 ] - particlePositions[ j * 3 + 1 ];
-						const dz = particlePositions[ i * 3 + 2 ] - particlePositions[ j * 3 + 2 ];
-						const dist = Math.sqrt( dx * dx + dy * dy + dz * dz );
 						
-						let rand = Math.floor(Math.random() * 100);
 						// **if connection exists
+						let rand = Math.floor(Math.random() * 100);
 						if ( rand === 10){	
 							// console.log(j)
 							particleData.numConnections ++;
 							particleDataB.numConnections ++;
 
 							// color of line changes with distance **strength of connection
-							const alpha = 1.0 - dist / 1000;//effectController.minDistance;
+							const alpha = 1.0 -  Math.random() ;//effectController.minDistance;
 
 							positions[ vertexpos ++ ] = particlePositions[ i * 3 ];
 							positions[ vertexpos ++ ] = particlePositions[ i * 3 + 1 ];
@@ -330,13 +326,15 @@
 							numConnected ++;
 
 						}
-						// setTimeout(() => { console.log("Awaiting calculations") ;}, 20000);
 						
-						await delay(5000);
-						console.log("Done");
+					
 					}
 
 				}
+		
+
+				
+				console.log("Done");
 
 
 				linesMesh.geometry.setDrawRange( 0, numConnected * 2 );
@@ -348,13 +346,15 @@
 				requestAnimationFrame( animate );
 
 				stats.update();
+				
 				render();
+				
 
 			}
 
 			function render() {
 
-				const time = Date.now() * 0.000000001;
+				const time = Date.now() * 0.001;
 
 				group.rotation.y = time *0;
 				renderer.render( scene, camera );
