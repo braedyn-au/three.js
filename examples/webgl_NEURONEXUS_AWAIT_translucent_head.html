@@ -31,7 +31,7 @@
 
 			let group, head;
 			let container, stats;
-			const particlesData = [];
+			let particlesData = [];
 			let camera, scene, renderer, light;
 			let positions, colors;
 			let particles;
@@ -75,77 +75,87 @@
 				let Xs = new Float32Array(maxParticleCount);
 				let Ys = new Float32Array(maxParticleCount);
 				let Zs = new Float32Array(maxParticleCount);
-				let xd = 0;
-				let yd = 0;
-				let zd = 0;
-				
+				// let Xs = [...Array(maxParticleCount)].map((_, i) => i);
+				// let Ys = [...Array(maxParticleCount)].map((_, i) => i);
+				// let Zs = [...Array(maxParticleCount)].map((_, i) => i);		
 					
 				const nodexLoader = new THREE.FileLoader();
 				const nodeyLoader = new THREE.FileLoader();
 				const nodezLoader = new THREE.FileLoader();
+				THREE.Cache.enabled = true;
 
+				// nodexLoader.setResponseType('arraybuffer');
 				nodexLoader.load(
-					// resource URL
+				// 	// resource URL
 					'../eegXs.txt',
-					// onLoad callback
+				// 	// onLoad callback
 					function ( data ) {
-						// output the text to the console
+						
+				// 		// output the text
 						var splitData = data.split('\n');
-						console.log("Loading")
+				// 		console.log("Loading")
+						// console.log(splitData);
 						for ( let i=0; i<maxParticleCount; i ++){
 							
 							Xs[i] = parseFloat(splitData[i]);
 							
 						}
-						xd = 1;
+						console.log("Xs inside: ", Xs);	
+						return Xs;
 					}
-					
+		
 				);
 
-				nodeyLoader.load(
+				console.log("Xs outside: ", Xs);
+
+				// nodeyLoader.setResponseType('arraybuffer');
+				Ys = nodeyLoader.load(
 					// resource URL
 					'../eegYs.txt',
 					// onLoad callback
 					function ( data ) {
-						// output the text to the console
+						
+					// 	// output the text to the console
 						var splitData = data.split('\n');
 						for ( let i=0; i<maxParticleCount; i ++){
 							
 							Ys[i] = parseFloat(splitData[i]);
 							
 						}
-						// console.log(Ys);
-						yd = 1;
+						console.log("Ys inside: ",Ys);
+					return Ys;	
 					}
-					
 				);
+				console.log("Ys outside: ", Ys);
 
-				nodezLoader.load(
-					// resource URL
-					'../eegZs.txt',
+				// nodezLoader.load(
+				// 	// resource URL
+				// 	'../eegZs.txt',
 
-					// onLoad callback
-					function ( data ) {
-						// output the text to the console
-						var splitData = data.split('\n');
-						for ( let i=0; i<maxParticleCount; i ++){
-							Zs[i] = parseFloat(splitData[i]);
+				// 	// onLoad callback
+				// 	function ( data ) {
+				// 		// output the text to the console
+				// 		var splitData = data.split('\n');
+				// 		for ( let i=0; i<maxParticleCount; i ++){
+				// 			// console.log(parseFloat(splitData[i]));
+				// 			Zs[i] = parseFloat(splitData[i]);
 							
-						}
-						// console.log(Zs);
-						zd = 1;
-					}
+				// 		}
+				// 		// console.log(Zs);
+				// 	}
 					
-				);
-				console.log(Xs,Ys,Zs);
-				myCallback(Xs, Ys, Zs);
+				// );
+				// console.log(Xs,Ys,Zs);
+				// console.log(Object.entries(Xs));
+				// myCallback(Xs, Ys, Zs);
 				
 			}
 			
 
 			function init(Xs, Ys, Zs) {
 				// let Xs, Ys, Zs = await loadNodes()
-				console.log(Xs[20])
+				console.log("Initializing")
+				// console.log(Xs);
 
 				container = document.getElementById( 'container' );
 
@@ -250,9 +260,9 @@
 				// }
 
 				
-		
+				// console.log(Xs[10])
 
-				// console.log("Plotting")
+				console.log("Plotting")
 				for ( let i = 0; i < maxParticleCount + 1; i ++ ) {
 					// spherical coordinates to generate a "cap"
 					radius = 500;
@@ -271,9 +281,9 @@
 					// const y = scoords.radius * Math.sin(scoords.theta) * Math.sin(scoords.phi) + 350;
 					// const z = scoords.radius * Math.cos(scoords.theta);
 					// console.log(Xs);
-					const x = Xs[i]*1000;
-					const y = Ys[i]*1000;
-					const z = Zs[i]*1000;
+					const x = Xs[i]*10*Math.random();
+					const y = Ys[i]*10*Math.random();
+					const z = Zs[i]*10*Math.random();
 
 					particlePositions[ i * 3 ] = x;
 					particlePositions[ i * 3 + 1 ] = y;
@@ -343,21 +353,21 @@
 
 			}
 
-			// add waiting???
-			function wait(ms) {
-					return new Promise(resolve => {
-						setTimeout(resolve, ms);
-						});
-					}
+			// // add waiting???
+			// function wait(ms) {
+			// 		return new Promise(resolve => {
+			// 			setTimeout(resolve, ms);
+			// 			});
+			// 		}
 
-			function wait2sec() {
-				console.log("waiting...");
-				return new Promise(resolve => {
-					setTimeout(function() {
-						resolve("slow");
-					}, 2000);
-				});
-			};
+			// function wait2sec() {
+			// 	console.log("waiting...");
+			// 	return new Promise(resolve => {
+			// 		setTimeout(function() {
+			// 			resolve("slow");
+			// 		}, 2000);
+			// 	});
+			// };
 
 			function animate() {
 				// await wait(5000);
@@ -365,7 +375,7 @@
 				let vertexpos = 0;
 				let colorpos = 0;
 				let numConnected = 0;
-
+				// console.log(particlesData[3]);
 				for ( let i = 0; i < particleCount; i ++ )
 					particlesData[ i ].numConnections = 0;
 

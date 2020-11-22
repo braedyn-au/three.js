@@ -13,7 +13,7 @@
 			<a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> webgl - buffergeometry drawrange<br/>
 			by <a href="https://twitter.com/fernandojsg">fernandojsg</a>
 		</div>
-
+		<script src="https://d3js.org/d3.v5.min.js"></script>
 		<script type="module">
 
 			import * as THREE from '../build/three.module.js';
@@ -39,7 +39,7 @@
 			let particlePositions;
 			let linesMesh;
 			let vnh, vth;
-			let Xs, Ys, Zs;
+			
 
 			const thetaDiv = 15; // number of lines going across the head; should be bigger
 			const phiDiv = 9; // number of lines going along the head; should be smaller 
@@ -65,14 +65,87 @@
 				maxConnections: 10,
 				particleCount: 20
 			};
-
+			
+			
+			
 			init();
 			animate();
-		
 
+/*			
+			function loadNodes(myCallback) {
+				
+				let Xs = new Float32Array(maxParticleCount);
+				let Ys = new Float32Array(maxParticleCount);
+				let Zs = new Float32Array(maxParticleCount);
+				let xd = 0;
+				let yd = 0;
+				let zd = 0;
+				
+					
+				const nodexLoader = new THREE.FileLoader();
+				const nodeyLoader = new THREE.FileLoader();
+				const nodezLoader = new THREE.FileLoader();
+
+				nodexLoader.load(
+					// resource URL
+					'../eegXs.txt',
+					// onLoad callback
+					function ( data ) {
+						// output the text to the console
+						var splitData = data.split('\n');
+						console.log("Loading")
+						for ( let i=0; i<maxParticleCount; i ++){
+							
+							Xs[i] = parseFloat(splitData[i]);
+							
+						}
+						xd = 1;
+					}
+					
+				);
+
+				nodeyLoader.load(
+					// resource URL
+					'../eegYs.txt',
+					// onLoad callback
+					function ( data ) {
+						// output the text to the console
+						var splitData = data.split('\n');
+						for ( let i=0; i<maxParticleCount; i ++){
+							
+							Ys[i] = parseFloat(splitData[i]);
+							
+						}
+						// console.log(Ys);
+						yd = 1;
+					}
+					
+				);
+
+				nodezLoader.load(
+					// resource URL
+					'../eegZs.txt',
+
+					// onLoad callback
+					function ( data ) {
+						// output the text to the console
+						var splitData = data.split('\n');
+						for ( let i=0; i<maxParticleCount; i ++){
+							Zs[i] = parseFloat(splitData[i]);
+							
+						}
+						// console.log(Zs);
+						zd = 1;
+					}
+					
+				);
+				console.log(Xs,Ys,Zs);
+				myCallback(Xs, Ys, Zs);
+				
+			}
+
+*/			
 			function init() {
-
-				// initGUI();
 
 				container = document.getElementById( 'container' );
 
@@ -108,7 +181,7 @@
 					// BufferGeometryUtils.computeTangents( mesh.geometry ); // generates bad data due to degenerate UVs
 					head.scale.multiplyScalar( 4.5);
 					// To make sure that the matrixWorld is up to date for the boxhelpers
-					// head.updateMatrixWorld( true );
+					head.updateMatrixWorld( true );
 
 					// head.add( mesh ); DISABLE FOR TRANSLUCENT OBJECT
 
@@ -170,81 +243,44 @@
 
 					for (let k = 0; k < phiDiv; k++){
 						angleList[i*2] = thetaSpace * j + thetaMin;
-						angleList[i*2+1] = phiSpace * k + phiMin;
 						// console.log(i);
 						i += 1;
 					}
 				}
-
-				Xs = new Float32Array(maxParticleCount);
 				
+				radius = 500;
 				
-				nodexLoader.load(
-					// resource URL
-					'../eegXs.txt',
-					// onLoad callback
-					function ( data ) {
-						// output the text to the console
-						// console.log( data );
-						var splitData = data.split('\n');
-						// console.log(splitData.length);
-						console.log("Loading")
-						for ( let i=0; i<maxParticleCount; i ++){
+				d3.csv("./dummy.csv").then(function(data) {
+					var array = Object.entries(data)
+					var i = 0
+					array.forEach( function(d){
+						if (typeof d[1]["x"] !== 'undefined'){
 							
-							Xs[i] = parseFloat(splitData[i])
+							particlePositions[ i * 3 ] = 3//Number(d[1]["x"])*10;
+							particlePositions[ i * 3 + 1 ] = 5//Number(d[1]["y"])*10;
+							particlePositions[ i * 3 + 2 ] = 10//Number(d[1]["z"])*10;
+							i= i+1;
 							
-						}
-						// Xs = Float32Array.from(data);
-						// console.log(Xs)
-						console.log(Xs.length);
-						// console.log(Xs)
-					}
-				);
-				nodeyLoader.load(
-					// resource URL
-					'../eegYs.txt',
+						
+							console.log(typeof(particlePositions))
+							console.log(Object.entries(particlePositions))
 
-					// onLoad callback
-					function ( data ) {
-						// output the text to the console
-						// console.log( data );
-						var splitData = data.split('\n');
-						// console.log(splitData.length);
-						for ( let i=0; i<maxParticleCount; i ++){
-							
-							Ys[i] = parseFloat(splitData[i])
-							
+							particlesData.push( { 
+								velocity: new THREE.Vector3( 0,0,0),
+								numConnections: 0
+							} );
 						}
-						// Xs = Float32Array.from(data);
-						// console.log(Ys)
-						console.log(Ys.length);
-					}
-				);
-				nodezLoader.load(
-					// resource URL
-					'../eegZs.txt',
+					});
+					//loadNodes(init);
+				
+				});
+				
+				console.log(particlePositions);
 
-					// onLoad callback
-					function ( data ) {
-						// output the text to the console
-						// console.log( data );
-						var splitData = data.split('\n');
-						// console.log(splitData.length);
-						for ( let i=0; i<maxParticleCount; i ++){
-							Zs[i] = parseFloat(splitData[i])
-							
-						}
-						// Xs = Float32Array.from(data);
-						// console.log(Zs)
-						console.log(Zs.length);
-					}
-				);
-		
-
-				console.log("Plotting")
-				for ( let i = 0; i < maxParticleCount + 1; i ++ ) {
+				// console.log("Plotting")
+				//for ( let i = 0; i < maxParticleCount + 1; i ++ ) {
 					// spherical coordinates to generate a "cap"
-					radius = 500;
+					//radius = 500;
 
 
 					// scoords = new Spherical();
@@ -260,21 +296,21 @@
 					// const y = scoords.radius * Math.sin(scoords.theta) * Math.sin(scoords.phi) + 350;
 					// const z = scoords.radius * Math.cos(scoords.theta);
 					// console.log(Xs);
-					const x = Math.random()*parseFloat('1268.34');
-					const y = Math.random()*parseFloat('1210.34');
-					const z = Math.random()*parseFloat('1200.34');
+					//const x = Xs[i]*1000;
+					//const y = Ys[i]*1000;
+					//const z = Zs[i]*1000;
 
-					particlePositions[ i * 3 ] = x;
-					particlePositions[ i * 3 + 1 ] = y;
-					particlePositions[ i * 3 + 2 ] = z;
+					//particlePositions[ i * 3 ] = x;
+					//particlePositions[ i * 3 + 1 ] = y;
+					//particlePositions[ i * 3 + 2 ] = z;
 
 					// add it to the geometry
-					particlesData.push( { 
-						velocity: new THREE.Vector3( 0,0,0),
-						numConnections: 0
-					} );
+					//particlesData.push( { 
+					//	velocity: new THREE.Vector3( 0,0,0),
+				//		numConnections: 0
+					//} );
 
-				};
+			//	};
 
 
 
