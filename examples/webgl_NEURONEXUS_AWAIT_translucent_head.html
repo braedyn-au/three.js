@@ -39,7 +39,7 @@
 			let particlePositions;
 			let linesMesh;
 			let vnh, vth;
-			let Xs, Ys, Zs;
+			
 
 			const thetaDiv = 15; // number of lines going across the head; should be bigger
 			const phiDiv = 9; // number of lines going along the head; should be smaller 
@@ -66,13 +66,86 @@
 				particleCount: 20
 			};
 
-			init();
+			loadNodes(init);
+			// init();
 			animate();
 		
+			function loadNodes(myCallback) {
+				
+				let Xs = new Float32Array(maxParticleCount);
+				let Ys = new Float32Array(maxParticleCount);
+				let Zs = new Float32Array(maxParticleCount);
+				let xd = 0;
+				let yd = 0;
+				let zd = 0;
+				
+					
+				const nodexLoader = new THREE.FileLoader();
+				const nodeyLoader = new THREE.FileLoader();
+				const nodezLoader = new THREE.FileLoader();
 
-			function init() {
+				nodexLoader.load(
+					// resource URL
+					'../eegXs.txt',
+					// onLoad callback
+					function ( data ) {
+						// output the text to the console
+						var splitData = data.split('\n');
+						console.log("Loading")
+						for ( let i=0; i<maxParticleCount; i ++){
+							
+							Xs[i] = parseFloat(splitData[i]);
+							
+						}
+						xd = 1;
+					}
+					
+				);
 
-				// initGUI();
+				nodeyLoader.load(
+					// resource URL
+					'../eegYs.txt',
+					// onLoad callback
+					function ( data ) {
+						// output the text to the console
+						var splitData = data.split('\n');
+						for ( let i=0; i<maxParticleCount; i ++){
+							
+							Ys[i] = parseFloat(splitData[i]);
+							
+						}
+						// console.log(Ys);
+						yd = 1;
+					}
+					
+				);
+
+				nodezLoader.load(
+					// resource URL
+					'../eegZs.txt',
+
+					// onLoad callback
+					function ( data ) {
+						// output the text to the console
+						var splitData = data.split('\n');
+						for ( let i=0; i<maxParticleCount; i ++){
+							Zs[i] = parseFloat(splitData[i]);
+							
+						}
+						// console.log(Zs);
+						zd = 1;
+					}
+					
+				);
+				console.log(Xs,Ys,Zs);
+				myCallback(Xs, Ys, Zs);
+				
+			}
+			
+
+			function init(Xs, Ys, Zs) {
+				// let Xs, Ys, Zs = await loadNodes()
+				console.log(Xs[20])
 
 				container = document.getElementById( 'container' );
 
@@ -108,7 +181,7 @@
 					// BufferGeometryUtils.computeTangents( mesh.geometry ); // generates bad data due to degenerate UVs
 					head.scale.multiplyScalar( 4.5);
 					// To make sure that the matrixWorld is up to date for the boxhelpers
-					// head.updateMatrixWorld( true );
+					head.updateMatrixWorld( true );
 
 					// head.add( mesh ); DISABLE FOR TRANSLUCENT OBJECT
 
@@ -160,95 +233,26 @@
 
 				particles = new THREE.BufferGeometry();
 				particlePositions = new Float32Array( maxParticleCount * 3 );
-				angleList = new Float32Array(maxParticleCount*2);
-				let thetaSpace = (thetaMax - thetaMin) * (Math.PI/180) / thetaDiv;
-				let phiSpace = (phiMax - phiMin) * (Math.PI/180) / phiDiv;
-				// console.log('hi');	
+				// angleList = new Float32Array(maxParticleCount*2);
+				// let thetaSpace = (thetaMax - thetaMin) * (Math.PI/180) / thetaDiv;
+				// let phiSpace = (phiMax - phiMin) * (Math.PI/180) / phiDiv;
+				// // console.log('hi');	
 
-				let i = 0;
-				for (let j = 0; j < thetaDiv; j ++) {
+				// let i = 0;
+				// for (let j = 0; j < thetaDiv; j ++) {
 
-					for (let k = 0; k < phiDiv; k++){
-						angleList[i*2] = thetaSpace * j + thetaMin;
-						angleList[i*2+1] = phiSpace * k + phiMin;
-						// console.log(i);
-						i += 1;
-					}
-				}
-
-				Xs = new Float32Array(maxParticleCount);
-				Ys = new Float32Array(maxParticleCount);
-				Zs = new Float32Array(maxParticleCount);
-				
-				
-				const nodexLoader = new THREE.FileLoader();
-				const nodeyLoader = new THREE.FileLoader();
-				const nodezLoader = new THREE.FileLoader();
+				// 	for (let k = 0; k < phiDiv; k++){
+				// 		angleList[i*2] = thetaSpace * j + thetaMin;
+				// 		angleList[i*2+1] = phiSpace * k + phiMin;
+				// 		// console.log(i);
+				// 		i += 1;
+				// 	}
+				// }
 
 				
-				nodexLoader.load(
-					// resource URL
-					'../eegXs.txt',
-					// onLoad callback
-					function ( data ) {
-						// output the text to the console
-						// console.log( data );
-						var splitData = data.split('\n');
-						// console.log(splitData.length);
-						console.log("Loading")
-						for ( let i=0; i<maxParticleCount; i ++){
-							
-							Xs[i] = parseFloat(splitData[i])
-							
-						}
-						// Xs = Float32Array.from(data);
-						// console.log(Xs)
-						console.log(Xs.length);
-						// console.log(Xs)
-					}
-				);
-				nodeyLoader.load(
-					// resource URL
-					'../eegYs.txt',
-
-					// onLoad callback
-					function ( data ) {
-						// output the text to the console
-						// console.log( data );
-						var splitData = data.split('\n');
-						// console.log(splitData.length);
-						for ( let i=0; i<maxParticleCount; i ++){
-							
-							Ys[i] = parseFloat(splitData[i])
-							
-						}
-						// Xs = Float32Array.from(data);
-						// console.log(Ys)
-						console.log(Ys.length);
-					}
-				);
-				nodezLoader.load(
-					// resource URL
-					'../eegZs.txt',
-
-					// onLoad callback
-					function ( data ) {
-						// output the text to the console
-						// console.log( data );
-						var splitData = data.split('\n');
-						// console.log(splitData.length);
-						for ( let i=0; i<maxParticleCount; i ++){
-							Zs[i] = parseFloat(splitData[i])
-							
-						}
-						// Xs = Float32Array.from(data);
-						// console.log(Zs)
-						console.log(Zs.length);
-					}
-				);
 		
 
-				console.log("Plotting")
+				// console.log("Plotting")
 				for ( let i = 0; i < maxParticleCount + 1; i ++ ) {
 					// spherical coordinates to generate a "cap"
 					radius = 500;
