@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - buffer geometry custom attributes - particles</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" href="main.css">
+	</head>
+	<body>
+		<div id="container"></div>
+		<div id="info"><a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> webgl - buffergeometry custom attributes - particles</div>
+
+		<script type="x-shader/x-vertex" id="vertexshader">
+
+			attribute float size;
+
+			varying vec3 vColor;
+
+			void main() {
+
+				vColor = color;
+
+				vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+
+				gl_PointSize = size * ( 300.0 / -mvPosition.z );
+
+				gl_Position = projectionMatrix * mvPosition;
+
+			}
+
+		</script>
+
+		<script type="x-shader/x-fragment" id="fragmentshader">
+
+			uniform sampler2D pointTexture;
+
+			varying vec3 vColor;
+
+			void main() {
+
+				gl_FragColor = vec4( vColor, 1.0 );
+
+				gl_FragColor = gl_FragColor * texture2D( pointTexture, gl_PointCoord );
+
+			}
+
+		</script>
+
+		<script type="module">
+
+			import * as THREE from '../build/three.module.js';
+			import Stats from './jsm/libs/stats.module.js';
+
+			import { GLTFLoader } from './jsm/loaders/GLTFLoader.js';
+
+			import { VertexNormalsHelper } from './jsm/helpers/VertexNormalsHelper.js';
+			import { VertexTangentsHelper } from './jsm/helpers/VertexTangentsHelper.js';
+			import { OrbitControls } from './jsm/controls/OrbitControls.js';
+			import { BufferGeometryUtils } from './jsm/utils/BufferGeometryUtils.js';
+			import {MathUtils} from '../src/math/MathUtils.js';
+			import {Spherical} from '../src/math/Spherical.js';
+
+			let renderer, scene, camera, stats;
+
+			let particleSystem, uniforms, geometry;
+			let particlePositions, positions, ncolors, lineMesh;
+			let particlesData = []
+
+			const particles = 64;
+
+			init();
+			animate();
+
+			function init() {
+
+
+				scene = new THREE.Scene();
+
+				// NODES
+				uniforms = {
+
+					pointTexture: { value: new THREE.TextureLoader().load( "textures/sprites/spark1.png" ) }
+
+				};
+
+				const shaderMaterial = new THREE.ShaderMaterial( {
+
+					uniforms: uniforms,
+					vertexShader: document.getElementById( 'vertexshader' ).textContent,
+					fragmentShader: document.getElementById( 'fragmentshader' ).textContent,
+
+					blending: THREE.AdditiveBlending,
+					depthTest: false,
+					transparent: true,
+					vertexColors: true
+
+				} );
+
+				const radius = 200;
+
+				geometry = new THREE.BufferGeometry();
+
+				const colors = [];
+				const sizes = [];
+
+				const color = new THREE.Color();
+				particlePositions = new Float32Array([ 345.4275 , -108.0558 ,  293.09845,  428.5036 ,  222.51055,
+													211.2683 ,  401.32845,  326.11955,  154.05345,  228.13865,
+													474.6509 ,    0.     ,  507.8901 ,  138.24   ,  151.2979 ,
+													433.864  ,  348.98165,    0.     ,  190.80705,  452.471  ,
+												-129.1932 ,  503.06   ,  255.9861 ,    0.     ,  401.32845,
+													326.11955, -154.05345,  507.8901 ,  138.24   , -151.2979 ,
+													428.5036 ,  222.51055, -211.2683 ,  344.60505,  277.9197 ,
+												-242.462  ,  320.04905,  185.5654 , -297.1162 ,  241.76245,
+													287.5288 , -293.78475,  162.52825,  377.37565, -254.53385,
+													76.16335,  443.00115, -203.9308 ,  345.4275 , -108.0558 ,
+												-293.09845,  262.0568 ,    7.61895, -329.411  ,  188.99405,
+													151.99895, -357.46425,   36.9857 ,  369.69605, -294.9958 ,
+													-61.8389 ,  447.2649 , -210.45395,  -10.319  ,  259.02395,
+												-364.52975,  126.0941 , -192.40355, -351.83965,  -27.05625,
+													-11.1018 , -374.6749 ,  -67.35775,  143.86105, -386.35975,
+												-115.58245,  236.85445, -360.93445, -196.10605,  165.4149 ,
+												-355.59935, -202.883  ,  284.1982 , -315.95095, -146.09605,
+												-141.40715, -338.8398 , -264.0799 ,   33.7158 , -321.5206 ,
+												-289.60725,  314.44645, -225.5589 , -268.98135, -117.96065,
+												-273.36215, -354.90995,  314.88975, -105.19035, -322.5757 ,
+													379.8376 ,    0.     , -421.6828 ,   46.91265, -134.05865,
+												-383.65015,  288.089  ,    0.     , -441.1608 ,   59.12295,
+													0.     , -354.90995,  314.88975,  105.19035, -421.6828 ,
+													46.91265,  134.05865, -289.60725,  314.44645,  225.5589 ,
+													-61.8389 ,  447.2649 ,  210.45395, -202.883  ,  284.1982 ,
+													315.95095, -268.98135, -117.96065,  273.36215, -264.0799 ,
+													33.7158 ,  321.5206 , -196.10605,  165.4149 ,  355.59935,
+												-115.58245,  236.85445,  360.93445, -146.09605, -141.40715,
+													338.8398 ,  -67.35775,  143.86105,  386.35975,  -10.319  ,
+													259.02395,  364.52975,   36.9857 ,  369.69605,  294.9958 ,
+													76.16335,  443.00115,  203.9308 ,  -27.05625,  -11.1018 ,
+													374.6749 ,  162.52825,  377.37565,  254.53385,  190.80705,
+													452.471  ,  129.1932 ,  126.0941 , -192.40355,  351.83965,
+													188.99405,  151.99895,  357.46425,  241.76245,  287.5288 ,
+													293.78475,  262.0568 ,    7.61895,  329.411  ,  320.04905,
+													185.5654 ,  297.1162 ,  344.60505,  277.9197 ,  242.462  ,
+													303.01155, -244.8439 ,  305.05745,  431.33045, -283.076  ,
+													204.6906 ,  431.33045, -283.076  , -204.6906 ,  303.01155,
+												-244.8439 , -305.05745]);
+
+
+				for ( let i = 0; i < particles; i ++ ) {
+
+					// color.setHSL(  i / particles, 1, 0.5 );
+					color.setHSL(i/particles,1,0.5);
+
+					colors.push( color.r, color.g, color.b );
+
+					sizes.push( 50 );
+
+					particlesData.push( { 
+						velocity: new THREE.Vector3( 0,0,0),
+						numConnections: 0
+					} );
+
+				}
+
+				geometry.setAttribute( 'position', new THREE.Float32BufferAttribute( particlePositions, 3 ) );
+				geometry.setAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
+				geometry.setAttribute( 'size', new THREE.Float32BufferAttribute( sizes, 1 ).setUsage( THREE.DynamicDrawUsage ) );
+
+				particleSystem = new THREE.Points( geometry, shaderMaterial );
+
+				scene.add( particleSystem );
+
+				// NETWORK
+				const segments = particles * particles;
+				positions = new Float32Array( segments * 3 );
+				ncolors = new Float32Array( segments * 3 );
+
+				const network = new THREE.BufferGeometry();
+				network.setAttribute('position', new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage));
+				network.setAttribute('color', new THREE.BufferAttribute( ncolors, 3 ).setUsage( THREE.DynamicDrawUsage ) );
+
+				network.computeBoundingSphere();
+				network.setDrawRange(0,0);
+
+				const lmaterial = new THREE.LineBasicMaterial( {
+					vertexColors: true,
+					blending: THREE.AdditiveBlending,
+					transparent: true
+				} );
+
+				lineMesh = new THREE.LineSegments( network, lmaterial);
+				scene.add(lineMesh);
+
+				// BRAIN
+				const loader = new GLTFLoader();
+				let head;
+				loader.load( 'models/gltf/LeePerrySmith/BrainLVQ.glb', function ( gltf ) {
+					
+					// gltf.scene.scale.set(1000);
+					const mesh = gltf.scene.children[0];
+					
+			
+
+					const wireframe = new THREE.WireframeGeometry( mesh.geometry );
+					wireframe.scale(4.5,4.5,4.5);
+					let line = new THREE.LineSegments( wireframe );
+					line.material.depthTest = false;
+					line.material.opacity = 0.015;
+					line.material.transparent = true;
+					line.position.x = -10;
+					line.position.z=0;
+					line.position.y=-20;
+					line.rotateY(Math.PI/2);
+					// line.scale(1000,1000,1000);
+					
+					scene.add( line );
+
+				});
+
+				renderer = new THREE.WebGLRenderer();
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+				const container = document.getElementById( 'container' );
+				container.appendChild( renderer.domElement );
+
+				stats = new Stats();
+				container.appendChild( stats.dom );
+				camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 4000 );
+				camera.position.z = 1750;
+
+				const controls = new OrbitControls( camera, container );
+				controls.minDistance = 1000;
+				controls.maxDistance = 3000;
+				//
+
+				window.addEventListener( 'resize', onWindowResize, false );
+
+			}
+
+			function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+			}
+
+			function animate() {
+
+				let vertexpos = 0;
+				let colorpos = 0;
+				let numConnected = 0;
+				const sizes = geometry.attributes.size.array;
+				const time = Date.now()*0.01;
+
+				for ( let i = 0; i < particles; i ++ ){
+					var needResize = 0;
+					particlesData[ i ].numConnections = 0;
+					sizes[i] = 100;
+					// while (sizes[i] > 100){
+					// 	sizes[i] = sizes[i] - time;
+					// 	console.log(time)
+					// // }
+					// if (sizes[i] > 1000 ){
+					// 	sizes[i] = 500;
+					// 	needResize = needResize + 1;
+					// 	continue;
+					// } else if (sizes[i] > 501 ){
+					// 	sizes[i] = 100;
+					// 	needResize = needResize + 1;
+					// 	continue;
+					// } else if (sizes[i] > 301 ) {
+					// 	sizes[i] = 50;
+					// 	needResize = needResize + 1;
+					// 	continue;
+					// 	}
+				// 	console.log(needResize)
+				
+					// }
+				}
+				var connection = new WebSocket('ws://localhost:8001/websocket');
+
+				connection.onmessage = function(event) {
+					// loads the whole network array from websocket_server_EEG.py
+					var newData = JSON.parse(event.data);
+					var now = new Date();
+	
+					var obj = {node1: newData.node1, node2: newData.node2, weight: newData.weight};
+					console.log(obj);
+
+					for ( let i = 1; i < obj.node1.length; i++){
+						const particleData = particlesData[obj.node1[i]];
+						const particleDataB = particlesData[obj.node2[i]];
+						particleData.numConnections ++;
+						particleDataB.numConnections ++;
+						const alpha = obj.weight[i]/10;
+						positions[ vertexpos ++ ] = particlePositions[ obj.node1[i] * 3 ];
+						positions[ vertexpos ++ ] = particlePositions[ obj.node1[i] * 3 + 1 ];
+						positions[ vertexpos ++ ] = particlePositions[ obj.node1[i] * 3 + 2 ];
+
+						positions[ vertexpos ++ ] = particlePositions[ obj.node2[i] * 3 ];
+						positions[ vertexpos ++ ] = particlePositions[ obj.node2[i] * 3 + 1 ];
+						positions[ vertexpos ++ ] = particlePositions[ obj.node2[i] * 3 + 2 ];
+
+						ncolors[ colorpos ++ ] = alpha*5;
+						ncolors[ colorpos ++ ] = alpha*5;
+						ncolors[ colorpos ++ ] = alpha*5;
+
+						ncolors[ colorpos ++ ] = alpha*5;
+						ncolors[ colorpos ++ ] = alpha*5;
+						ncolors[ colorpos ++ ] = alpha*5;
+
+						numConnected ++;
+
+						// alpha is always > 0.09 in example since i thresholed weights by 0.9
+						sizes[obj.node1[i]] = (10000*alpha);
+						sizes[obj.node2[i]] = (10000*alpha);
+
+
+						lineMesh.geometry.setDrawRange( 0, numConnected * 2 );
+						lineMesh.geometry.attributes.position.needsUpdate = true;
+						lineMesh.geometry.attributes.color.needsUpdate = true;
+
+						particleSystem.geometry.attributes.position.needsUpdate = true;
+
+					}
+					
+					// requestAnimationFrame( animate );
+
+					
+				}
+				render();
+				stats.update();
+				requestAnimationFrame( animate );
+
+
+			}
+
+			function render() {
+
+				const time = Date.now() * 0.005;
+
+				// particleSystem.rotation.z = 0.01 * time;
+
+				// const sizes = geometry.attributes.size.array;
+
+				// for ( let i = 0; i < particles; i ++ ) {
+
+				// 	sizes[ i ] = 100 * ( 1 + Math.sin( 0.1 * i + time ) );
+
+				// }
+
+				geometry.attributes.size.needsUpdate = true;
+
+				renderer.render( scene, camera );
+
+			}
+
+		</script>
+
+</body>
+</html>
