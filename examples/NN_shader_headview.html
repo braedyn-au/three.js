@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - buffergeometry - lines drawrange</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" href="main.css">
+	</head>
+	<body>
+
+		<div id="container"></div>
+		<div id="info">
+			<a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> webgl - buffergeometry drawrange<br/>
+			by <a href="https://twitter.com/fernandojsg">fernandojsg</a>
+		</div>
+
+		<script type="x-shader/x-vertex" id="vertexshader">
+
+			attribute float size;
+
+			varying vec3 vColor;
+
+			void main() {
+
+				vColor = color;
+
+				vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+
+				gl_PointSize = size * ( 300.0 / -mvPosition.z );
+
+				gl_Position = projectionMatrix * mvPosition;
+
+			}
+
+		</script>
+
+		<script type="x-shader/x-fragment" id="fragmentshader">
+
+			uniform sampler2D pointTexture;
+
+			varying vec3 vColor;
+
+			void main() {
+
+				gl_FragColor = vec4( vColor, 1.0 );
+
+				gl_FragColor = gl_FragColor * texture2D( pointTexture, gl_PointCoord );
+
+			}
+
+		</script>
+		
+		<script type="module">
+
+			import * as THREE from '../build/three.module.js';
+
+			import Stats from './jsm/libs/stats.module.js';
+			// import { GUI } from './jsm/libs/dat.gui.module.js';
+			import { GLTFLoader } from './jsm/loaders/GLTFLoader.js';
+
+			import { VertexNormalsHelper } from './jsm/helpers/VertexNormalsHelper.js';
+			import { VertexTangentsHelper } from './jsm/helpers/VertexTangentsHelper.js';
+			import { OrbitControls } from './jsm/controls/OrbitControls.js';
+			import { BufferGeometryUtils } from './jsm/utils/BufferGeometryUtils.js';
+			import {MathUtils} from '../src/math/MathUtils.js';
+			import {Spherical} from '../src/math/Spherical.js';
+
+			let group, head;
+			let container, stats;
+			const particlesData = [];
+			let camera, scene, renderer, light;
+			let positions, colors;
+			let particles;
+			let pointCloud;
+			let particlePositions;
+			let linesMesh;
+			let vnh, vth;
+
+			const thetaDiv = 15; // number of lines going across the head; should be bigger
+			const phiDiv = 9; // number of lines going along the head; should be smaller 
+
+			const maxParticleCount = thetaDiv*phiDiv;
+			let particleCount = thetaDiv*phiDiv;
+			const r = 600;
+			const rHalf = r / 2;
+			const thetaMin = 20;
+			const thetaMax = 250;  // theta from 0 to 360
+			const phiMin = 0;
+			const phiMax = 180;		// phi from 0 to 180
+			let radius;
+			let scoords;
+			let angleList;
+
+
+			const effectController = {
+				showDots: true,
+				showLines: true,
+				minDistance: 100,
+				limitConnections: true,
+				maxConnections: 0,
+				particleCount: 20
+			};
+
+			init();
+			animate();
+		
+
+			function init() {
+
+				// initGUI();
+
+				container = document.getElementById( 'container' );
+
+				camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 4000 );
+				camera.position.x = -1950;
+				camera.position.y = 10;
+
+				const controls = new OrbitControls( camera, container );
+				controls.minDistance = 1000;
+				controls.maxDistance = 3000;
+
+				scene = new THREE.Scene();
+
+
+				group = new THREE.Group();
+				scene.add( group );
+				
+				// light = new THREE.PointLight();
+				// light.position.set( 200, 900, 1150 );
+				// scene.add( light );
+
+				// scene.add( new THREE.PointLightHelper( light, 15 ) );
+				
+				const loader = new GLTFLoader();
+				loader.load( 'models/gltf/LeePerrySmith/LeePerrySmith.glb', function ( gltf ) {
+				// loader.load( 'models/gltf/LeePerrySmith/Head.glb', function ( gltf ) {
+					head = new THREE.Group();
+
+					scene.add( head );
+					const mesh = gltf.scene.children[ 0 ];
+					
+					mesh.rotateY(-Math.PI/2);
+					mesh.position.y = -1.8;
+					mesh.position.x = 0.2
+					BufferGeometryUtils.computeTangents( mesh.geometry ); // generates bad data due to degenerate UVs
+					head.scale.multiplyScalar( 200 );
+					// To make sure that the matrixWorld is up to date for the boxhelpers
+					head.updateMatrixWorld( true );
+
+					head.add( mesh );
+
+					vnh = new VertexNormalsHelper( mesh, 2, 0x00FFFF ); // vertical
+					vnh.material.transparent = true;
+					// vnh.scale.multiplyScalar(2000000);
+					// vnh.material.opacity = 0.5;
+					scene.add( vnh ); // scene.add => opaque head/ head.add => transparent head
+
+					vth = new VertexTangentsHelper( mesh, 20, 0xCCCCCC ); // horizontal
+					vth.material.transparent = true;
+					// vth.material.opacity = 0.5;
+					// vth.scale.multiplyScalar(2000000);
+					scene.add( vth ); // scene => opaque head/head => transparent head
+
+					// scene.add( new THREE.BoxHelper( mesh ) );
+
+					// const wireframe = new THREE.WireframeGeometry( mesh.geometry );
+					// let line = new THREE.LineSegments( wireframe );
+					// line.material.depthTest = false;
+					// line.material.opacity = 0.1;
+					// line.material.transparent = true;
+					// line.position.x = 0;
+					// line.position.y=-2.5
+					// head.add( line );
+
+
+				} );
+
+				//
+
+				window.addEventListener( 'resize', onWindowResize, false );
+
+
+				const segments = maxParticleCount * maxParticleCount;
+
+				positions = new Float32Array( segments * 3 );
+				colors = new Float32Array( segments * 3 );
+
+				const pMaterial = new THREE.PointsMaterial( {
+					color: 0xFF0000,
+					size: 20,
+					// shape: circle,
+					blending: THREE.AdditiveBlending,
+					transparent: true,
+					sizeAttenuation: true
+				} );
+
+				particles = new THREE.BufferGeometry();
+				// particlePositions = new Float32Array( maxParticleCount * 3 );
+				particlePositions = new Float32Array([ 345.4275 , -108.0558 ,  293.09845,  428.5036 ,  222.51055,
+													211.2683 ,  401.32845,  326.11955,  154.05345,  228.13865,
+													474.6509 ,    0.     ,  507.8901 ,  138.24   ,  151.2979 ,
+													433.864  ,  348.98165,    0.     ,  190.80705,  452.471  ,
+												-129.1932 ,  503.06   ,  255.9861 ,    0.     ,  401.32845,
+													326.11955, -154.05345,  507.8901 ,  138.24   , -151.2979 ,
+													428.5036 ,  222.51055, -211.2683 ,  344.60505,  277.9197 ,
+												-242.462  ,  320.04905,  185.5654 , -297.1162 ,  241.76245,
+													287.5288 , -293.78475,  162.52825,  377.37565, -254.53385,
+													76.16335,  443.00115, -203.9308 ,  345.4275 , -108.0558 ,
+												-293.09845,  262.0568 ,    7.61895, -329.411  ,  188.99405,
+													151.99895, -357.46425,   36.9857 ,  369.69605, -294.9958 ,
+													-61.8389 ,  447.2649 , -210.45395,  -10.319  ,  259.02395,
+												-364.52975,  126.0941 , -192.40355, -351.83965,  -27.05625,
+													-11.1018 , -374.6749 ,  -67.35775,  143.86105, -386.35975,
+												-115.58245,  236.85445, -360.93445, -196.10605,  165.4149 ,
+												-355.59935, -202.883  ,  284.1982 , -315.95095, -146.09605,
+												-141.40715, -338.8398 , -264.0799 ,   33.7158 , -321.5206 ,
+												-289.60725,  314.44645, -225.5589 , -268.98135, -117.96065,
+												-273.36215, -354.90995,  314.88975, -105.19035, -322.5757 ,
+													379.8376 ,    0.     , -421.6828 ,   46.91265, -134.05865,
+												-383.65015,  288.089  ,    0.     , -441.1608 ,   59.12295,
+													0.     , -354.90995,  314.88975,  105.19035, -421.6828 ,
+													46.91265,  134.05865, -289.60725,  314.44645,  225.5589 ,
+													-61.8389 ,  447.2649 ,  210.45395, -202.883  ,  284.1982 ,
+													315.95095, -268.98135, -117.96065,  273.36215, -264.0799 ,
+													33.7158 ,  321.5206 , -196.10605,  165.4149 ,  355.59935,
+												-115.58245,  236.85445,  360.93445, -146.09605, -141.40715,
+													338.8398 ,  -67.35775,  143.86105,  386.35975,  -10.319  ,
+													259.02395,  364.52975,   36.9857 ,  369.69605,  294.9958 ,
+													76.16335,  443.00115,  203.9308 ,  -27.05625,  -11.1018 ,
+													374.6749 ,  162.52825,  377.37565,  254.53385,  190.80705,
+													452.471  ,  129.1932 ,  126.0941 , -192.40355,  351.83965,
+													188.99405,  151.99895,  357.46425,  241.76245,  287.5288 ,
+													293.78475,  262.0568 ,    7.61895,  329.411  ,  320.04905,
+													185.5654 ,  297.1162 ,  344.60505,  277.9197 ,  242.462  ,
+													303.01155, -244.8439 ,  305.05745,  431.33045, -283.076  ,
+													204.6906 ,  431.33045, -283.076  , -204.6906 ,  303.01155,
+												-244.8439 , -305.05745]);
+				// angleList = new Float32Array(maxParticleCount*2);
+				// let thetaSpace = (thetaMax - thetaMin) * (Math.PI/180) / thetaDiv;
+				// let phiSpace = (phiMax - phiMin) * (Math.PI/180) / phiDiv;
+				// console.log('hi');	
+
+				// let i = 0;
+				// for (let j = 0; j < thetaDiv; j ++) {
+
+				// 	for (let k = 0; k < phiDiv; k++){
+				// 		angleList[i*2] = thetaSpace * j + thetaMin;
+				// 		angleList[i*2+1] = phiSpace * k + phiMin;
+				// 		// console.log(i);
+				// 		i += 1;
+				// 	}
+				// }
+
+
+				// console.log(angleList);
+				for ( let i = 0; i < maxParticleCount + 1; i ++ ) {
+					// spherical coordinates to generate a "cap"
+					// radius = 500;
+
+
+					// scoords = new Spherical();
+					// scoords.radius = radius;
+					// scoords.phi = (Math.random()*(phiMax - phiMin) + thetaMin)*(Math.PI/180);
+					// scoords.theta = (Math.random()*(thetaMax - thetaMin) + thetaMin)*(Math.PI/180);
+					// scoords.theta = angleList[i*2];
+					// scoords.phi = angleList[i*2+1];
+					// console.log(angleList[i*2], angleList[i*2 + 1])
+
+
+					// const x = scoords.radius * Math.sin(scoords.theta) * Math.cos(scoords.phi);
+					// const y = scoords.radius * Math.sin(scoords.theta) * Math.sin(scoords.phi) + 350;
+					// const z = scoords.radius * Math.cos(scoords.theta);
+
+					// particlePositions[ i * 3 ] = x;
+					// particlePositions[ i * 3 + 1 ] = y;
+					// particlePositions[ i * 3 + 2 ] = z;
+
+					// add it to the geometry
+					particlesData.push( { 
+						velocity: new THREE.Vector3( 0,0,0),
+						numConnections: 0
+					} );
+
+				}
+
+				particles.setDrawRange( 0, particleCount );
+				particles.setAttribute( 'position', new THREE.BufferAttribute( particlePositions, 3 ).setUsage( THREE.DynamicDrawUsage ) );
+
+				// create the particle system
+				pointCloud = new THREE.Points( particles, pMaterial );
+				group.add( pointCloud );
+
+				const geometry = new THREE.BufferGeometry();
+
+				geometry.setAttribute( 'position', new THREE.BufferAttribute( positions, 3 ).setUsage( THREE.DynamicDrawUsage ) );
+				geometry.setAttribute( 'color', new THREE.BufferAttribute( colors, 3 ).setUsage( THREE.DynamicDrawUsage ) );
+
+				geometry.computeBoundingSphere();
+
+				geometry.setDrawRange( 0, 0 );
+
+				const material = new THREE.LineBasicMaterial( {
+					vertexColors: true,
+					blending: THREE.AdditiveBlending,
+					transparent: true
+				} );
+
+				linesMesh = new THREE.LineSegments( geometry, material );
+				group.add( linesMesh );
+
+				//
+
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.outputEncoding = THREE.sRGBEncoding;
+
+				container.appendChild( renderer.domElement );
+
+				//
+
+				stats = new Stats();
+				container.appendChild( stats.dom );
+
+				window.addEventListener( 'resize', onWindowResize, false );
+
+			}
+
+			function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+			}
+
+			function animate() {
+
+				let vertexpos = 0;
+				let colorpos = 0;
+				let numConnected = 0;
+
+				for ( let i = 0; i < particleCount; i ++ )
+					particlesData[ i ].numConnections = 0;
+
+				for ( let i = 0; i < particleCount; i ++ ) {
+
+					// get the particle
+					const particleData = particlesData[ i ];
+					// console.log(i)
+
+					particlePositions[ i * 3 ] += particleData.velocity.x;
+					particlePositions[ i * 3 + 1 ] += particleData.velocity.y;
+					particlePositions[ i * 3 + 2 ] += particleData.velocity.z;
+
+					// boundary conditions
+					if ( particlePositions[ i * 3 + 1 ] < - rHalf || particlePositions[ i * 3 + 1 ] > rHalf )
+						particleData.velocity.y = - particleData.velocity.y;
+
+					if ( particlePositions[ i * 3 ] < - rHalf || particlePositions[ i * 3 ] > rHalf )
+						particleData.velocity.x = - particleData.velocity.x;
+
+					if ( particlePositions[ i * 3 + 2 ] < - rHalf || particlePositions[ i * 3 + 2 ] > rHalf )
+						particleData.velocity.z = - particleData.velocity.z;
+
+					if ( effectController.limitConnections && particleData.numConnections >= effectController.maxConnections )
+						continue;
+
+					// Check collision
+					// input network data right here
+					for ( let j = i + 1; j < particleCount; j ++ ) {
+						// console.log(j)
+						const particleDataB = particlesData[ j ];
+						if ( effectController.limitConnections && particleDataB.numConnections >= effectController.maxConnections )
+							continue;
+
+						const dx = particlePositions[ i * 3 ] - particlePositions[ j * 3 ];
+						const dy = particlePositions[ i * 3 + 1 ] - particlePositions[ j * 3 + 1 ];
+						const dz = particlePositions[ i * 3 + 2 ] - particlePositions[ j * 3 + 2 ];
+						const dist = Math.sqrt( dx * dx + dy * dy + dz * dz );
+						let rand = Math.floor(Math.random() * 100);
+						// console.log(rand)
+						if ( dist < effectController.minDistance ) {
+						// if ( j % 2 === 0 ){	
+							// console.log(j)
+							particleData.numConnections ++;
+							particleDataB.numConnections ++;
+
+							// color of line changes with distance
+							const alpha = 1.0 - dist / effectController.minDistance;
+
+							positions[ vertexpos ++ ] = particlePositions[ i * 3 ];
+							positions[ vertexpos ++ ] = particlePositions[ i * 3 + 1 ];
+							positions[ vertexpos ++ ] = particlePositions[ i * 3 + 2 ];
+
+							positions[ vertexpos ++ ] = particlePositions[ j * 3 ];
+							positions[ vertexpos ++ ] = particlePositions[ j * 3 + 1 ];
+							positions[ vertexpos ++ ] = particlePositions[ j * 3 + 2 ];
+
+							colors[ colorpos ++ ] = alpha;
+							colors[ colorpos ++ ] = alpha;
+							colors[ colorpos ++ ] = alpha;
+
+							colors[ colorpos ++ ] = alpha;
+							colors[ colorpos ++ ] = alpha;
+							colors[ colorpos ++ ] = alpha;
+
+							numConnected ++;
+
+						}
+
+					}
+
+				}
+
+
+				linesMesh.geometry.setDrawRange( 0, numConnected * 2 );
+				linesMesh.geometry.attributes.position.needsUpdate = true;
+				linesMesh.geometry.attributes.color.needsUpdate = true;
+
+				pointCloud.geometry.attributes.position.needsUpdate = true;
+
+				requestAnimationFrame( animate );
+
+				stats.update();
+				render();
+
+			}
+
+			function render() {
+
+				const time = Date.now() * 0.000000001;
+
+				group.rotation.y = time *0;
+				renderer.render( scene, camera );
+
+			}
+
+		</script>
+	</body>
+</html>

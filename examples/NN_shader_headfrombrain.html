@@ -65,6 +65,7 @@
 			let particleSystem, uniforms, geometry;
 			let particlePositions, positions, ncolors, lineMesh;
 			let particlesData = []
+			let vnh, vth, group;
 
 			const particles = 64;
 
@@ -75,6 +76,42 @@
 
 
 				scene = new THREE.Scene();
+				group = new THREE.Group();
+				scene.add(group);
+
+				// HEAD
+				const loader = new GLTFLoader();
+				let head;
+				loader.load( 'models/gltf/LeePerrySmith/LeePerrySmith.glb', function ( gltf ) {
+					head = new THREE.Group();
+
+					scene.add( head );
+					const mesh = gltf.scene.children[ 0 ];
+					
+					mesh.rotateY(-Math.PI/2);
+					mesh.position.y = -1.8;
+					mesh.position.x = 0.2
+					BufferGeometryUtils.computeTangents( mesh.geometry ); // generates bad data due to degenerate UVs
+					head.scale.multiplyScalar( 200 );
+					// To make sure that the matrixWorld is up to date for the boxhelpers
+					head.updateMatrixWorld( true );
+					mesh.material.transparent = false;
+
+					head.add( mesh );
+
+					vnh = new VertexNormalsHelper( mesh, 2, 0x00FFFF ); // vertical
+					vnh.material.transparent = false;
+					// vnh.material.opacity = 1;
+					vnh.scale.multiplyScalar(1);
+					scene.add( vnh ); // scene.add => opaque head/ head.add => transparent head
+
+					vth = new VertexTangentsHelper( mesh, 20, 0xCCCCCC ); // horizontal
+					vth.material.transparent = false;
+					
+					scene.add( vth ); // scene => opaque head/head => transparent head
+
+
+				} );
 
 				// NODES
 				uniforms = {
@@ -152,12 +189,7 @@
 
 					colors.push( color.r, color.g, color.b );
 
-					sizes.push( 100 );
-
-					particlesData.push( { 
-						velocity: new THREE.Vector3( 0,0,0),
-						numConnections: 0
-					} );
+					sizes.push( 300 );
 
 				}
 
@@ -167,54 +199,8 @@
 
 				particleSystem = new THREE.Points( geometry, shaderMaterial );
 
-				scene.add( particleSystem );
+				group.add( particleSystem );
 
-				// NETWORK
-				const segments = particles * particles;
-				positions = new Float32Array( segments * 3 );
-				ncolors = new Float32Array( segments * 3 );
-
-				const network = new THREE.BufferGeometry();
-				network.setAttribute('position', new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage));
-				network.setAttribute('color', new THREE.BufferAttribute( ncolors, 3 ).setUsage( THREE.DynamicDrawUsage ) );
-
-				network.computeBoundingSphere();
-				network.setDrawRange(0,0);
-
-				const lmaterial = new THREE.LineBasicMaterial( {
-					vertexColors: true,
-					blending: THREE.AdditiveBlending,
-					transparent: true
-				} );
-
-				lineMesh = new THREE.LineSegments( network, lmaterial);
-				scene.add(lineMesh);
-
-				// BRAIN
-				const loader = new GLTFLoader();
-				let head;
-				loader.load( 'models/gltf/LeePerrySmith/BrainLVQ.glb', function ( gltf ) {
-					
-					// gltf.scene.scale.set(1000);
-					const mesh = gltf.scene.children[0];
-					
-			
-
-					const wireframe = new THREE.WireframeGeometry( mesh.geometry );
-					wireframe.scale(4.5,4.5,4.5);
-					let line = new THREE.LineSegments( wireframe );
-					line.material.depthTest = false;
-					line.material.opacity = 0.015;
-					line.material.transparent = true;
-					line.position.x = -10;
-					line.position.z=0;
-					line.position.y=-20;
-					line.rotateY(Math.PI/2);
-					// line.scale(1000,1000,1000);
-					
-					scene.add( line );
-
-				});
 
 				renderer = new THREE.WebGLRenderer();
 				renderer.setPixelRatio( window.devicePixelRatio );
@@ -225,8 +211,10 @@
 
 				stats = new Stats();
 				container.appendChild( stats.dom );
-				camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 4000 );
-				camera.position.z = 1750;
+
+				camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 4000 );
+				camera.position.x = -1950;
+				camera.position.y = 10;
 
 				const controls = new OrbitControls( camera, container );
 				controls.minDistance = 1000;
@@ -248,98 +236,6 @@
 
 			function animate() {
 
-				let vertexpos = 0;
-				let colorpos = 0;
-				let numConnected = 0;
-				const sizes = geometry.attributes.size.array;
-				const time = Date.now()*0.01;
-
-				for ( let i = 0; i < particles; i ++ ){
-					var needResize = 0;
-					particlesData[ i ].numConnections = 0;
-					// sizes[i] = 100;
-					// }
-					if (sizes[i] > 1000 ){
-						sizes[i] = 800;
-						needResize = needResize + 1;
-						continue;
-					} else if (sizes[i] > 801 ){
-						sizes[i] = 400;
-						needResize = needResize + 1;
-						continue;
-					} else if (sizes[i] > 401 ) {
-						sizes[i] = 100;
-						needResize = needResize + 1;
-						continue;
-					}
-					
-
-				}
-			
-
-				for ( let i = 0; i < particles; i ++ ) {
-
-					// get the particle
-					const particleData = particlesData[ i ];
-					// console.log(i)
-
-					// input network data right here
-					// read adjacancy matrix as csv/json 
-					for ( let j = i + 1; j < particles; j ++ ) {
-						// console.log(j)
-						const particleDataB = particlesData[ j ];
-						
-						// **if connection exists
-						let rand = Math.floor(Math.random() * 2000);
-						if ( rand === 10){	
-							// console.log(j)
-							particleData.numConnections ++;
-							particleDataB.numConnections ++;
-
-							// color of line changes with distance **strength of connection
-							const alpha = 1.0 -  Math.random() ;//effectController.minDistance;
-
-							positions[ vertexpos ++ ] = particlePositions[ i * 3 ];
-							positions[ vertexpos ++ ] = particlePositions[ i * 3 + 1 ];
-							positions[ vertexpos ++ ] = particlePositions[ i * 3 + 2 ];
-
-							positions[ vertexpos ++ ] = particlePositions[ j * 3 ];
-							positions[ vertexpos ++ ] = particlePositions[ j * 3 + 1 ];
-							positions[ vertexpos ++ ] = particlePositions[ j * 3 + 2 ];
-
-							ncolors[ colorpos ++ ] = alpha;
-							ncolors[ colorpos ++ ] = alpha;
-							ncolors[ colorpos ++ ] = alpha;
-
-							ncolors[ colorpos ++ ] = alpha;
-							ncolors[ colorpos ++ ] = alpha;
-							ncolors[ colorpos ++ ] = alpha;
-
-							numConnected ++;
-							sizes[i] = 100 + 1000*alpha;
-							sizes[j] = 100 + 1000*alpha;
-
-						}
-						
-
-					}
-
-
-				}
-					
-
-				
-		
-
-				
-				console.log("Done");
-
-
-				lineMesh.geometry.setDrawRange( 0, numConnected * 2 );
-				lineMesh.geometry.attributes.position.needsUpdate = true;
-				lineMesh.geometry.attributes.color.needsUpdate = true;
-
-				// particleSystem.geometry.attributes.position.needsUpdate = true;
 
 				requestAnimationFrame( animate );
 
