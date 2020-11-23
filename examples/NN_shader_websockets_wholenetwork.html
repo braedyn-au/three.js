@@ -284,26 +284,27 @@
 					let numConnected = 0;
 					for ( let i = 0; i < particles; i ++ ){
 						
-							var needResize = 0;
-							particlesData[ i ].numConnections = 0;
+						var needResize = 0;
+						particlesData[ i ].numConnections = 0;
+						// sizes[i] = 100;
+						// while (sizes[i] > 100){
+						// 	sizes[i] = sizes[i] - time;
+						// 	console.log(time)
+						// // }
+						console.log(sizes[i])
+						if (sizes[i] > 1000 ){
+							sizes[i] = 500;
+							needResize = needResize + 1;
+							continue;
+						} else if (sizes[i] > 501 ){
+							sizes[i] = 400;
+							needResize = needResize + 1;
+							continue;
+						} else if (sizes[i] > 301 ) {
 							sizes[i] = 100;
-						// 	// while (sizes[i] > 100){
-						// 	// 	sizes[i] = sizes[i] - time;
-						// 	// 	console.log(time)
-						// 	// // }
-						// 	// if (sizes[i] > 1000 ){
-						// 	// 	sizes[i] = 500;
-						// 	// 	needResize = needResize + 1;
-						// 	// 	continue;
-						// 	// } else if (sizes[i] > 501 ){
-						// 	// 	sizes[i] = 100;
-						// 	// 	needResize = needResize + 1;
-						// 	// 	continue;
-						// 	// } else if (sizes[i] > 301 ) {
-						// 	// 	sizes[i] = 50;
-						// 	// 	needResize = needResize + 1;
-						// 	// 	continue;
-						// 	// 	}
+							needResize = needResize + 1;
+							continue;
+							}
 						// // 	console.log(needResize)
 							}	
 					
