@@ -247,17 +247,13 @@
 			}
 
 			function animate() {
-
-				let vertexpos = 0;
-				let colorpos = 0;
-				let numConnected = 0;
 				const sizes = geometry.attributes.size.array;
 				const time = Date.now()*0.01;
 
-				for ( let i = 0; i < particles; i ++ ){
-					var needResize = 0;
-					particlesData[ i ].numConnections = 0;
-					sizes[i] = 100;
+				// for ( let i = 0; i < particles; i ++ ){
+				// 	var needResize = 0;
+				// 	particlesData[ i ].numConnections = 0;
+					// sizes[i] = 100;
 					// while (sizes[i] > 100){
 					// 	sizes[i] = sizes[i] - time;
 					// 	console.log(time)
@@ -278,10 +274,39 @@
 				// 	console.log(needResize)
 				
 					// }
-				}
+				// }
+				
 				var connection = new WebSocket('ws://localhost:8001/websocket');
 
 				connection.onmessage = function(event) {
+					let vertexpos = 0;
+					let colorpos = 0;
+					let numConnected = 0;
+					for ( let i = 0; i < particles; i ++ ){
+						
+							var needResize = 0;
+							particlesData[ i ].numConnections = 0;
+							sizes[i] = 100;
+						// 	// while (sizes[i] > 100){
+						// 	// 	sizes[i] = sizes[i] - time;
+						// 	// 	console.log(time)
+						// 	// // }
+						// 	// if (sizes[i] > 1000 ){
+						// 	// 	sizes[i] = 500;
+						// 	// 	needResize = needResize + 1;
+						// 	// 	continue;
+						// 	// } else if (sizes[i] > 501 ){
+						// 	// 	sizes[i] = 100;
+						// 	// 	needResize = needResize + 1;
+						// 	// 	continue;
+						// 	// } else if (sizes[i] > 301 ) {
+						// 	// 	sizes[i] = 50;
+						// 	// 	needResize = needResize + 1;
+						// 	// 	continue;
+						// 	// 	}
+						// // 	console.log(needResize)
+							}	
+					
 					// loads the whole network array from websocket_server_EEG.py
 					var newData = JSON.parse(event.data);
 					var now = new Date();
@@ -314,8 +339,8 @@
 						numConnected ++;
 
 						// alpha is always > 0.09 in example since i thresholed weights by 0.9
-						sizes[obj.node1[i]] = (10000*alpha);
-						sizes[obj.node2[i]] = (10000*alpha);
+						sizes[obj.node1[i]] = 1000*Math.abs(0.9-alpha);
+						sizes[obj.node2[i]] = 1000*Math.abs(0.9-alpha);
 
 
 						lineMesh.geometry.setDrawRange( 0, numConnected * 2 );
